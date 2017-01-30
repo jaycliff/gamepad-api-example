@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Gamepad API Example</title>
+        <style type="text/css">
+            * {
+                padding: 0;
+                margin: 0;
+            }
+            
+            body {
+                background-color: #f0f0f0;
+                padding: 10px;
+            }
+            
+            #wrap {
+                background-color: #ffffff;
+                margin: 0 auto;
+                width: 640px;
+            }
+            
+            #main-table > tr:nth-child(even) {
+                background-color: #f8f8f8;
+            }
+            
+            th, td {
+                width: 75%;
+            }
+            
+            th:first-child, td:first-child {
+                width: 25%;
+            }
+            
+            th {
+                text-align: left;
+            }
+        </style>
+        <!-- <link rel="stylesheet" href="bar-slider.css" type="text/css" /> -->
+        <script type="text/javascript" src="jquery-3.0.0.min.js"></script>
+        <script type="text/javascript">
+            // https://www.smashingmagazine.com/2015/11/gamepad-api-in-web-games/
+            jQuery(document).ready(function ($) {
+                "use strict";
+                var wrap = document.getElementById('wrap'), list_of_gamepads, gamepad_index = -1;
+                function applyDeadzone(number, threshold) {
+                    var percentage = (Math.abs(number) - threshold) / (1 - threshold);
+                    if (percentage < 0) {
+                        percentage = 0;
+                    }
+                    return percentage * (number > 0 ? 1 : -1);
+                }
+                // var joystickX = applyDeadzone(gamepad.axes[0], 0.25);
+                window.addEventListener("gamepadconnected", function (event) {
+                    console.log("Gamepad connected", event.gamepad);
+                }, false);
+                window.addEventListener("gamepaddisconnected", function (event) {
+                    // Gamepad disconnected
+                    console.log("Gamepad disconnected", event.gamepad);
+                }, false);
+                $(window).on('gamepadconnected gamepaddisconnected', function (event) {
+                    switch (event.type) {
+                    case 'gamepadconnected':
+                        console.log("Gamepad connected", event.gamepad);
+                        break;
+                    case 'gamepaddisconnected':
+                        console.log("Gamepad disconnected", event.gamepad);
+                        break;
+                    }
+                });
+                (function () {
+                    var select = document.createElement('select'),
+                        option,
+                        table,
+                        tr,
+                        td,
+                        main_table,
+                        timestamp,
+                        axes,
+                        buttons,
+                        $table,
+                        has_gamepad_attached = false,
+                        item,
+                        k,
+                        len,
+                        looper,
+                        raf_active = false,
+                        raf_id;
+                    select.setAttribute('id', 'select-gamepad');
+                    select.setAttribute('placeholder', 'No gamepad attached!');
+                    list_of_gamepads = navigator.getGamepads();
+                    for (k = 0, len = list_of_gamepads.length; k <= len; k += 1) {
+                        if (k > 0) {
+                            item = list_of_gamepads[k - 1];
+                            if (item) {
+                                if (!has_gamepad_attached) {
+                                    has_gamepad_attached = true;
+                                }
+                                option = document.createElement('option');
+                                option.setAttribute('value', k - 1);
+                                option.textContent = item.id;
+                                select.appendChild(option);
+                            }
+                        } else {
+                            option = document.createElement('option');
+                            option.setAttribute('value', gamepad_index);
+                            option.textContent = 'No gamepad attached!';
+                            select.appendChild(option);
+                        }
+                    }
+                    if (has_gamepad_attached) {
+                        table = document.createElement('table');
+                        table.setAttribute('style', 'width: 100%; border: solid 1px #c0c0c0;');
+                        table.setAttribute('id', 'main-table');
+                        main_table = table;
+                        tr = document.createElement('tr');
+                        td = document.createElement('th');
+                        td.textContent = 'timestamp';
+                        td.setAttribute('width', '300');
+                        tr.appendChild(td);
+                        td = document.createElement('td');
+                        td.setAttribute('id', 'timestamp');
+                        timestamp = td;
+                        tr.appendChild(td);
+                        table.appendChild(tr);
+                        tr = document.createElement('tr');
+                        td = document.createElement('th');
+                        td.textContent = 'axes';
+                        td.setAttribute('width', '300');
+                        tr.appendChild(td);
+                        td = document.createElement('td');
+                        td.setAttribute('id', 'axes');
+                        axes = td;
+                        tr.appendChild(td);
+                        table.appendChild(tr);
+                        tr = document.createElement('tr');
+                        td = document.createElement('th');
+                        td.textContent = 'buttons';
+                        td.setAttribute('width', '300');
+                        tr.appendChild(td);
+                        td = document.createElement('td');
+                        td.setAttribute('id', 'buttons');
+                        buttons = td;
+                        tr.appendChild(td);
+                        table.appendChild(tr);
+                        // Axes
+                        table = document.createElement('table');
+                        table.setAttribute('id', 'axes-data');
+                        table.setAttribute('style', 'width: 100%;');
+                        item = list_of_gamepads[0].axes;
+                        for (k = 0, len = item.length; k < len; k += 1) {
+                            tr = document.createElement('tr');
+                            td = document.createElement('th');
+                            td.textContent = k;
+                            tr.appendChild(td);
+                            td = document.createElement('td');
+                            tr.appendChild(td);
+                            table.appendChild(tr);
+                        }
+                        axes.appendChild(table);
+                        // Buttons
+                        table = document.createElement('table');
+                        table.setAttribute('id', 'buttons-data');
+                        table.setAttribute('style', 'width: 100%;');
+                        item = list_of_gamepads[0].buttons;
+                        for (k = 0, len = item.length; k < len; k += 1) {
+                            tr = document.createElement('tr');
+                            td = document.createElement('th');
+                            td.textContent = k;
+                            tr.appendChild(td);
+                            td = document.createElement('td');
+                            tr.appendChild(td);
+                            table.appendChild(tr);
+                        }
+                        buttons.appendChild(table);
+                        looper = function looper() {
+                            var gamepad = navigator.getGamepads()[gamepad_index], // navigator.getGamepads() has to be constantly invoked to get the latest data #annoying
+                                i,
+                                length,
+                                property;
+                            if (gamepad) {
+                                timestamp.textContent = gamepad.timestamp;
+                                raf_id = requestAnimationFrame(looper);
+                                property = gamepad.axes;
+                                for (i = 0, length = property.length; i < length; i += 1) {
+                                    axes.children[0].children[i].children[1].textContent = applyDeadzone(property[i], 0.004);
+                                }
+                                property = gamepad.buttons;
+                                for (i = 0, length = property.length; i < length; i += 1) {
+                                    buttons.children[0].children[i].children[1].textContent = 'PRESSED: ' + property[i].pressed + ', VALUE: ' + property[i].value;
+                                }
+                            }
+                        };
+                        select.setAttribute('placeholder', 'Select a gamepad');
+                        select.options[0].textContent = 'Select a gamepad';
+                        select.selectedIndex = 0;
+                        $(select).on('change', function () {
+                            var value = parseInt(this.value, 10);
+                            gamepad_index = value;
+                            if (value >= 0) {
+                                console.log('Gamepad "' + this.options[value + 1].textContent + '" selected!');
+                                wrap.appendChild(main_table);
+                                if (!raf_active) {
+                                    looper();
+                                    raf_active = true;
+                                }
+                            } else {
+                                console.log('No gamepad selected!');
+                                if (raf_active) {
+                                    cancelAnimationFrame(raf_id);
+                                    raf_active = false;
+                                }
+                                wrap.removeChild(main_table);
+                            }
+                        });
+                    }
+                    wrap.appendChild(select);
+                }());
+            });
+        </script>
+    </head>
+    <body>
+        <div id="wrap">
+        
+        </div>
+    </body>
+</html>
